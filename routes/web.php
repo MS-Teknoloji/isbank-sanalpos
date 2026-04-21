@@ -1,6 +1,6 @@
 <?php
 
-use GrisePet\IsbankSanalpos\Http\Controllers\IsbankSanalposController;
+use MsTeknoloji\IsbankSanalpos\Http\Controllers\IsbankSanalposController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('core')->group(function () {

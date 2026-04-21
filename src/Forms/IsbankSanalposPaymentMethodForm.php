@@ -1,6 +1,6 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Forms;
+namespace MsTeknoloji\IsbankSanalpos\Forms;
 
 use Botble\Base\Facades\BaseHelper;
 use Botble\Base\Forms\FieldOptions\OnOffFieldOption;

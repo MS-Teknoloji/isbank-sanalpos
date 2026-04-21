@@ -1,9 +1,9 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Services\Gateways;
+namespace MsTeknoloji\IsbankSanalpos\Services\Gateways;
 
-use GrisePet\IsbankSanalpos\Models\Currency;
-use GrisePet\IsbankSanalpos\Services\Abstracts\IsbankSanalposPaymentAbstract;
+use MsTeknoloji\IsbankSanalpos\Models\Currency;
+use MsTeknoloji\IsbankSanalpos\Services\Abstracts\IsbankSanalposPaymentAbstract;
 use Illuminate\Http\Request;
 
 class IsbankSanalposPaymentService extends IsbankSanalposPaymentAbstract

@@ -1,6 +1,6 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos;
+namespace MsTeknoloji\IsbankSanalpos;
 
 use Botble\PluginManagement\Abstracts\PluginOperationAbstract;
 use Botble\Setting\Facades\Setting;

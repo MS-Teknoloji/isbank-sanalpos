@@ -1,6 +1,6 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Providers;
+namespace MsTeknoloji\IsbankSanalpos\Providers;
 
 use Botble\Base\Traits\LoadAndPublishDataTrait;
 use Illuminate\Support\ServiceProvider;

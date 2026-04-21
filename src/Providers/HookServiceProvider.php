@@ -1,14 +1,14 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Providers;
+namespace MsTeknoloji\IsbankSanalpos\Providers;
 
 use Botble\Base\Facades\Html;
 use Botble\Ecommerce\Models\Currency as CurrencyEcommerce;
 use Botble\Payment\Enums\PaymentMethodEnum;
 use Botble\Payment\Facades\PaymentMethods;
-use GrisePet\IsbankSanalpos\Forms\IsbankSanalposPaymentMethodForm;
-use GrisePet\IsbankSanalpos\Models\Currency;
-use GrisePet\IsbankSanalpos\Services\Gateways\IsbankSanalposPaymentService;
+use MsTeknoloji\IsbankSanalpos\Forms\IsbankSanalposPaymentMethodForm;
+use MsTeknoloji\IsbankSanalpos\Models\Currency;
+use MsTeknoloji\IsbankSanalpos\Services\Gateways\IsbankSanalposPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\ServiceProvider;

@@ -1,6 +1,6 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Http\Controllers;
+namespace MsTeknoloji\IsbankSanalpos\Http\Controllers;
 
 use Botble\Base\Http\Controllers\BaseController;
 use Botble\Ecommerce\Facades\OrderHelper;

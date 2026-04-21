@@ -1,6 +1,6 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Services\Abstracts;
+namespace MsTeknoloji\IsbankSanalpos\Services\Abstracts;
 
 use Botble\Payment\Models\Payment;
 use Botble\Payment\Services\Traits\PaymentErrorTrait;

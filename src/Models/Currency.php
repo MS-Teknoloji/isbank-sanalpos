@@ -1,6 +1,6 @@
 <?php
 
-namespace GrisePet\IsbankSanalpos\Models;
+namespace MsTeknoloji\IsbankSanalpos\Models;
 
 class Currency
 {
