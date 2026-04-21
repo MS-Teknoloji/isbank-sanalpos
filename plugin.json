@@ -1,0 +1,12 @@
+{
+    "id": "grisepet/isbank-sanalpos",
+    "name": "Isbank Sanalpos",
+    "namespace": "GrisePet\\IsbankSanalpos\\",
+    "provider": "GrisePet\\IsbankSanalpos\\Providers\\IsbankSanalposServiceProvider",
+    "author": "GrisePet",
+    "url": "https://grisepet.com",
+    "version": "1.0.0",
+    "description": "Isbank Sanalpos payment gateway for Botble eCommerce system.",
+    "minimum_core_version": "7.0.0",
+    "require": ["botble/payment"]
+}
