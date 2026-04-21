@@ -104,7 +104,7 @@ them publicly.
 
 ## Credits
 
-* [MsTeknoloji](https://github.com/MS-Teknoloji)
+* [MS Teknoloji](https://github.com/MS-Teknoloji)
 * [Firdavs](https://github.com/Firdavs9512)
 
 ## License
