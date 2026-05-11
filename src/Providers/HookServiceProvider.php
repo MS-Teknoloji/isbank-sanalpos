@@ -117,7 +117,7 @@ class HookServiceProvider extends ServiceProvider
 
                 $gatewayUrl = $sandbox
                     ? 'https://entegrasyon.asseco-see.com.tr/fim/est3Dgate'
-                    : 'https://sanalpos.isbank.com.tr/servlet/est3Dgate';
+                    : 'https://sanalpos.isbank.com.tr/fim/est3Dgate';
 
                 // Checkout formada ko'rsatilgan kart ma'lumotlarini olish (odeme.php'dagi maydon nomlari)
                 $cardHolder = $request->input('card_holder');
