@@ -104,19 +104,45 @@ class IsbankSanalposController extends BaseController
         return $this->redirectToFail($checkoutToken, $errMsg);
     }
 
+    // NestPay Hash Version 3 javob tekshiruvi:
+    // "encoding", "hash", "countdown" parametrlari hisobga olinmaydi; qolganlari
+    // case-insensitive alfavit tartibida "|" bilan birlashtiriladi, qiymatlardagi
+    // "\" -> "\\", "|" -> "\|" escape qilinadi, oxiriga "|storeKey" qo'shilib
+    // SHA-512 + base64 hisoblanadi.
     protected function verifyHash(Request $request): bool
     {
-        $postedHash = $request->input('HASH');
-        $hashParamsVal = $request->input('HASHPARAMSVAL');
+        $posted = $request->input('HASH') ?? $request->input('hash');
 
-        if (! $postedHash || ! $hashParamsVal) {
+        if (! $posted) {
             return (bool) get_payment_setting('sandbox', ISBANK_SANALPOS_PAYMENT_METHOD_NAME);
         }
 
         $storeKey = get_payment_setting('store_key', ISBANK_SANALPOS_PAYMENT_METHOD_NAME);
-        $calculatedHash = base64_encode(pack('H*', sha1($hashParamsVal . $storeKey)));
 
-        return hash_equals($calculatedHash, $postedHash);
+        $params = $request->all();
+        $filtered = [];
+        foreach ($params as $key => $value) {
+            $lower = strtolower($key);
+            if (in_array($lower, ['encoding', 'hash', 'countdown'], true)) {
+                continue;
+            }
+            if (is_array($value)) {
+                continue;
+            }
+            $filtered[$key] = $value;
+        }
+
+        uksort($filtered, fn ($a, $b) => strcasecmp($a, $b));
+
+        $escaped = array_map(
+            fn ($v) => str_replace(['\\', '|'], ['\\\\', '\\|'], (string) $v),
+            $filtered
+        );
+
+        $plaintext = implode('|', $escaped) . '|' . str_replace(['\\', '|'], ['\\\\', '\\|'], (string) $storeKey);
+        $calculated = base64_encode(hash('sha512', $plaintext, true));
+
+        return hash_equals($calculated, $posted);
     }
 
     protected function translateErrorMessage(?string $mdStatus, ?string $procReturnCode, ?string $rawErrMsg): string
