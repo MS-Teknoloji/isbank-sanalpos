@@ -103,30 +103,28 @@ class HookServiceProvider extends ServiceProvider
 
                 $okUrl = route('payments.isbank-sanalpos.callback', ['token' => $checkoutToken]);
                 $failUrl = route('payments.isbank-sanalpos.fail', ['token' => $checkoutToken]);
-                $rnd = microtime();
+                // microtime() bo'sh joyli string qaytaradi ("0.12345 1234567890") va
+                // bank tarafida hash qayta hisoblanganda escape farqlari yuzaga keladi.
+                $rnd = bin2hex(random_bytes(16));
                 $islemTipi = 'Auth';
                 $storeType = '3d_pay';
 
                 $currencyValue = $paymentData['currency'] == 'TL' ? 'TRY' : $paymentData['currency'];
                 $currencyCode = Currency::getNumericCode($currencyValue);
 
-                // Hash formulasi — eski odeme.php'dan olingan:
-                // base64_encode(pack('H*', sha1(clientId + oid + amount + okUrl + failUrl + islemtipi + rnd + storekey)))
-                $hashStr = $clientId . $oid . $amount . $okUrl . $failUrl . $islemTipi . $rnd . $storeKey;
-                $hash = base64_encode(pack('H*', sha1($hashStr)));
-
                 $gatewayUrl = $sandbox
                     ? 'https://entegrasyon.asseco-see.com.tr/fim/est3Dgate'
                     : 'https://sanalpos.isbank.com.tr/fim/est3Dgate';
 
                 // Checkout formada ko'rsatilgan kart ma'lumotlarini olish (odeme.php'dagi maydon nomlari)
-                $cardHolder = $request->input('card_holder');
-                $pan = $request->input('pan');
-                $cv2 = $request->input('cv2');
-                $expMonth = $request->input('Ecom_Payment_Card_ExpDate_Month');
-                $expYear = $request->input('Ecom_Payment_Card_ExpDate_Year');
-                $cardType = $request->input('cardType');
+                $cardHolder = trim((string) $request->input('card_holder'));
+                $pan = preg_replace('/\s+/', '', (string) $request->input('pan'));
+                $cv2 = trim((string) $request->input('cv2'));
+                $expMonth = str_pad(trim((string) $request->input('Ecom_Payment_Card_ExpDate_Month')), 2, '0', STR_PAD_LEFT);
+                $expYear = trim((string) $request->input('Ecom_Payment_Card_ExpDate_Year'));
+                $cardType = trim((string) $request->input('cardType'));
 
+                // NestPay Hash Version 3 (SHA-512 + base64) — Payten dokumentatsiyasiga muvofiq
                 $formData = [
                     'clientid' => $clientId,
                     'amount' => $amount,
@@ -134,8 +132,8 @@ class HookServiceProvider extends ServiceProvider
                     'okUrl' => $okUrl,
                     'failUrl' => $failUrl,
                     'rnd' => $rnd,
-                    'hash' => $hash,
                     'storetype' => $storeType,
+                    'hashAlgorithm' => 'ver3',
                     'lang' => 'tr',
                     'currency' => $currencyCode,
                     'islemtipi' => $islemTipi,
@@ -146,6 +144,8 @@ class HookServiceProvider extends ServiceProvider
                     'Ecom_Payment_Card_ExpDate_Month' => $expMonth,
                     'Ecom_Payment_Card_ExpDate_Year' => $expYear,
                 ];
+
+                $formData['hash'] = $this->calculateVer3Hash($formData, $storeKey);
 
                 echo view('plugins/isbank-sanalpos::redirect', [
                     'formData' => $formData,
@@ -202,19 +202,50 @@ class HookServiceProvider extends ServiceProvider
         }, 20, 2);
 
         add_filter(PAYMENT_FILTER_PAYMENT_INFO_DETAIL, function ($data, $payment) {
-            if ($payment->payment_channel == ISBANK_SANALPOS_PAYMENT_METHOD_NAME) {
-                $paymentService = new IsbankSanalposPaymentService();
-                $paymentDetail = $paymentService->getPaymentDetails($payment->charge_id);
-
-                if ($paymentDetail) {
-                    $data = view('plugins/isbank-sanalpos::detail', [
-                        'payment' => $paymentDetail,
-                        'paymentModel' => $payment,
-                    ])->render();
-                }
-            }
-
-            return $data;
+            return $this->paymentInfoDetail($data, $payment);
         }, 20, 2);
+    }
+
+    // NestPay Hash Version 3: parametr nomlari case-insensitive alfavit tartibida,
+    // qiymatlarda "\" -> "\\", "|" -> "\|" escape qilinadi, "encoding" va "hash"
+    // hash hisoblashga kirmaydi. Oxiriga "|storeKey" qo'shilib SHA-512 + base64.
+    protected function calculateVer3Hash(array $params, string $storeKey): string
+    {
+        $filtered = [];
+        foreach ($params as $key => $value) {
+            $lower = strtolower($key);
+            if ($lower === 'encoding' || $lower === 'hash') {
+                continue;
+            }
+            $filtered[$key] = $value;
+        }
+
+        uksort($filtered, fn ($a, $b) => strcasecmp($a, $b));
+
+        $escaped = array_map(
+            fn ($v) => str_replace(['\\', '|'], ['\\\\', '\\|'], (string) $v),
+            $filtered
+        );
+
+        $plaintext = implode('|', $escaped) . '|' . str_replace(['\\', '|'], ['\\\\', '\\|'], $storeKey);
+
+        return base64_encode(hash('sha512', $plaintext, true));
+    }
+
+    protected function paymentInfoDetail($data, $payment)
+    {
+        if ($payment->payment_channel == ISBANK_SANALPOS_PAYMENT_METHOD_NAME) {
+            $paymentService = new IsbankSanalposPaymentService();
+            $paymentDetail = $paymentService->getPaymentDetails($payment->charge_id);
+
+            if ($paymentDetail) {
+                $data = view('plugins/isbank-sanalpos::detail', [
+                    'payment' => $paymentDetail,
+                    'paymentModel' => $payment,
+                ])->render();
+            }
+        }
+
+        return $data;
     }
 }
