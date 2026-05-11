@@ -65,7 +65,7 @@ These are configured automatically based on the Sandbox toggle; no action is req
 on your side:
 
 * **Sandbox:** `https://entegrasyon.asseco-see.com.tr/fim/est3Dgate`
-* **Production:** `https://sanalpos.isbank.com.tr/servlet/est3Dgate`
+* **Production:** `https://sanalpos.isbank.com.tr/fim/est3Dgate`
 
 ## Callback URLs
 
