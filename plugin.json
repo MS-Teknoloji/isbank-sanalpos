@@ -6,7 +6,7 @@
     "author": "MsTeknoloji",
     "author_url": "https://github.com/MS-Teknoloji",
     "url": "https://github.com/MS-Teknoloji/isbank-sanalpos",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Isbank Sanalpos payment gateway for Botble eCommerce system.",
     "minimum_core_version": "7.0.0",
     "require": ["botble/payment"]
