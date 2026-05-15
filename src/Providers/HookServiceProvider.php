@@ -107,7 +107,8 @@ class HookServiceProvider extends ServiceProvider
                 // bank tarafida hash qayta hisoblanganda escape farqlari yuzaga keladi.
                 $rnd = bin2hex(random_bytes(16));
                 $islemTipi = 'Auth';
-                $storeType = '3d_pay';
+                // Payten NestPay 3D_PAY (katta harf) qabul qiladi; hash plaintext'da ham shu shaklda
+                $storeType = '3D_PAY';
 
                 $currencyValue = $paymentData['currency'] == 'TL' ? 'TRY' : $paymentData['currency'];
                 $currencyCode = Currency::getNumericCode($currencyValue);
@@ -120,32 +121,44 @@ class HookServiceProvider extends ServiceProvider
                 $cardHolder = trim((string) $request->input('card_holder'));
                 $pan = preg_replace('/\s+/', '', (string) $request->input('pan'));
                 $cv2 = trim((string) $request->input('cv2'));
-                $expMonth = str_pad(trim((string) $request->input('Ecom_Payment_Card_ExpDate_Month')), 2, '0', STR_PAD_LEFT);
+                $rawMonth = trim((string) $request->input('Ecom_Payment_Card_ExpDate_Month'));
+                $expMonth = $rawMonth === '' ? '' : str_pad($rawMonth, 2, '0', STR_PAD_LEFT);
                 $expYear = trim((string) $request->input('Ecom_Payment_Card_ExpDate_Year'));
                 $cardType = trim((string) $request->input('cardType'));
 
-                // NestPay Hash Version 3 (SHA-512 + base64) — Payten dokumentatsiyasiga muvofiq
-                $formData = [
-                    'clientid' => $clientId,
+                // Payten NestPay ver3 hash plaintext tartibi (bank tomonidan tasdiqlangan):
+                // amount|cardType|card_holder|clientid|currency|cv2|Ecom_Payment_Card_ExpDate_Month
+                // |Ecom_Payment_Card_ExpDate_Year|failUrl|hashAlgorithm|islemtipi|lang|oid|okUrl
+                // |pan|rnd|storetype|storeKey
+                // strcasecmp/strcmp ham bu tartibni bermaydi (cardType vs card_holder underscore),
+                // shuning uchun belgilangan ro'yxat ishlatamiz.
+                $hashOrderedData = [
                     'amount' => $amount,
-                    'oid' => $oid,
-                    'okUrl' => $okUrl,
-                    'failUrl' => $failUrl,
-                    'rnd' => $rnd,
-                    'storetype' => $storeType,
-                    'hashAlgorithm' => 'ver3',
-                    'lang' => 'tr',
-                    'currency' => $currencyCode,
-                    'islemtipi' => $islemTipi,
-                    'card_holder' => $cardHolder,
                     'cardType' => $cardType,
-                    'pan' => $pan,
+                    'card_holder' => $cardHolder,
+                    'clientid' => $clientId,
+                    'currency' => $currencyCode,
                     'cv2' => $cv2,
                     'Ecom_Payment_Card_ExpDate_Month' => $expMonth,
                     'Ecom_Payment_Card_ExpDate_Year' => $expYear,
+                    'failUrl' => $failUrl,
+                    'hashAlgorithm' => 'ver3',
+                    'islemtipi' => $islemTipi,
+                    'lang' => 'tr',
+                    'oid' => $oid,
+                    'okUrl' => $okUrl,
+                    'pan' => $pan,
+                    'rnd' => $rnd,
+                    'storetype' => $storeType,
                 ];
 
-                $formData['hash'] = $this->calculateVer3Hash($formData, $storeKey);
+                $hash = $this->calculateVer3Hash($hashOrderedData, $storeKey);
+
+                // POST yuboriladigan form: hash hisobiga kirmaydigan encoding ham qo'shiladi
+                $formData = $hashOrderedData + [
+                    'hash' => $hash,
+                    'encoding' => 'UTF-8',
+                ];
 
                 echo view('plugins/isbank-sanalpos::redirect', [
                     'formData' => $formData,
@@ -206,9 +219,10 @@ class HookServiceProvider extends ServiceProvider
         }, 20, 2);
     }
 
-    // NestPay Hash Version 3: parametr nomlari case-insensitive alfavit tartibida,
-    // qiymatlarda "\" -> "\\", "|" -> "\|" escape qilinadi, "encoding" va "hash"
-    // hash hisoblashga kirmaydi. Oxiriga "|storeKey" qo'shilib SHA-512 + base64.
+    // NestPay Hash Version 3: parametrlar kelgan tartibda qoldiriladi (chaqiruvchi to'g'ri
+    // tartibda uzatadi — Payten tasdiqlagan ro'yxat). Qiymatlarda "\" -> "\\", "|" -> "\|"
+    // escape qilinadi, "encoding" va "hash" hash hisoblashga kirmaydi. Oxiriga "|storeKey"
+    // qo'shilib SHA-512 + base64.
     protected function calculateVer3Hash(array $params, string $storeKey): string
     {
         $filtered = [];
@@ -219,8 +233,6 @@ class HookServiceProvider extends ServiceProvider
             }
             $filtered[$key] = $value;
         }
-
-        uksort($filtered, fn ($a, $b) => strcasecmp($a, $b));
 
         $escaped = array_map(
             fn ($v) => str_replace(['\\', '|'], ['\\\\', '\\|'], (string) $v),
