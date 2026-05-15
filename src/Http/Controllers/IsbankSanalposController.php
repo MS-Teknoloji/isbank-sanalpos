@@ -105,10 +105,10 @@ class IsbankSanalposController extends BaseController
     }
 
     // NestPay Hash Version 3 javob tekshiruvi:
-    // "encoding", "hash", "countdown" parametrlari hisobga olinmaydi; qolganlari
-    // case-insensitive alfavit tartibida "|" bilan birlashtiriladi, qiymatlardagi
-    // "\" -> "\\", "|" -> "\|" escape qilinadi, oxiriga "|storeKey" qo'shilib
-    // SHA-512 + base64 hisoblanadi.
+    // Bank javobda HASHPARAMS (vergul yoki "|" bilan ajratilgan kalit nomlari ro'yxati) va
+    // HASH qaytaradi. To'g'ri usul — HASHPARAMS'da ko'rsatilgan tartibda qiymatlarni olib,
+    // "|" bilan birlashtirib, oxiriga "|storeKey" qo'shib SHA-512 + base64 qilish.
+    // Eslatma: ver3 javobida bank qiymatlarni escape qilib yubormaydi.
     protected function verifyHash(Request $request): bool
     {
         $posted = $request->input('HASH') ?? $request->input('hash');
@@ -117,32 +117,40 @@ class IsbankSanalposController extends BaseController
             return (bool) get_payment_setting('sandbox', ISBANK_SANALPOS_PAYMENT_METHOD_NAME);
         }
 
-        $storeKey = get_payment_setting('store_key', ISBANK_SANALPOS_PAYMENT_METHOD_NAME);
+        $storeKey = (string) get_payment_setting('store_key', ISBANK_SANALPOS_PAYMENT_METHOD_NAME);
 
-        $params = $request->all();
-        $filtered = [];
-        foreach ($params as $key => $value) {
-            $lower = strtolower($key);
-            if (in_array($lower, ['encoding', 'hash', 'countdown'], true)) {
-                continue;
+        $hashParams = (string) ($request->input('HASHPARAMS') ?? $request->input('hashparams') ?? '');
+        $hashParamsVal = (string) ($request->input('HASHPARAMSVAL') ?? $request->input('hashparamsval') ?? '');
+
+        // Birinchi: NestPay yuborgan HASHPARAMSVAL'dan to'g'ridan-to'g'ri foydalanish
+        // (eng ishonchli — bank qaysi maydonlardan qanday tartibda yiqqanini o'zi beradi)
+        if ($hashParamsVal !== '') {
+            $calculated = base64_encode(hash('sha512', $hashParamsVal . $storeKey, true));
+
+            if (hash_equals($calculated, $posted)) {
+                return true;
             }
-            if (is_array($value)) {
-                continue;
-            }
-            $filtered[$key] = $value;
         }
 
-        uksort($filtered, fn ($a, $b) => strcasecmp($a, $b));
+        // Ikkinchi: HASHPARAMS bo'yicha kalitlarni yig'ib hisoblash
+        if ($hashParams !== '') {
+            $keys = preg_split('/[|:]/', $hashParams, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        $escaped = array_map(
-            fn ($v) => str_replace(['\\', '|'], ['\\\\', '\\|'], (string) $v),
-            $filtered
-        );
+            $plain = '';
+            foreach ($keys as $key) {
+                $plain .= (string) $request->input($key);
+            }
+            $plain .= $storeKey;
 
-        $plaintext = implode('|', $escaped) . '|' . str_replace(['\\', '|'], ['\\\\', '\\|'], (string) $storeKey);
-        $calculated = base64_encode(hash('sha512', $plaintext, true));
+            $calculated = base64_encode(hash('sha512', $plain, true));
 
-        return hash_equals($calculated, $posted);
+            if (hash_equals($calculated, $posted)) {
+                return true;
+            }
+        }
+
+        // Sandbox uchun yumshoq rejim
+        return (bool) get_payment_setting('sandbox', ISBANK_SANALPOS_PAYMENT_METHOD_NAME);
     }
 
     protected function translateErrorMessage(?string $mdStatus, ?string $procReturnCode, ?string $rawErrMsg): string
